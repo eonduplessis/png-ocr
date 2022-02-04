@@ -3,20 +3,25 @@ import pytesseract
 import azure.functions as func
 import io
 
+import asyncio
+
 from PIL import Image
 
 def png_ocr(image_data):
     #Required for local only
     #pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-    
+
     text = ""
-    image = Image.open(io.BytesIO(image_data))
+    byteImgIO = io.BytesIO(image_data)
+    byteImgIO.seek(0)
+    
+    image = Image.open(byteImgIO)
+    
     text = pytesseract.image_to_string(image)
     
     return text
 
-def main(req: func.HttpRequest) -> func.HttpResponse:
-    #1
+async def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a request.')
 
     text = ""
@@ -25,20 +30,11 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         filename = input_file.filename
         contents = input_file.stream.read()
 
-        f = open("test.png","wb")
-        f.write(contents)
-        f.close()
+        text = png_ocr(contents)
 
-        text = text + png_ocr(contents)
+        length = len(text)
 
         logging.info('Filename: %s' % filename)
-        logging.info('Contents Length:')
-        logging.info(len(text))
+        logging.info('Contents Length: {length})')
 
-    if len(text) > 0:
-        return func.HttpResponse(text)
-    else:
-        return func.HttpResponse(
-             "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response.",
-             status_code=200
-        )
+    return func.HttpResponse(text, status_code=200)
